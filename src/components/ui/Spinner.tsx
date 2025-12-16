@@ -1,0 +1,32 @@
+import { cn } from '@/lib/utils'
+
+interface SpinnerProps {
+  size?: 'sm' | 'md' | 'lg'
+  className?: string
+}
+
+export function Spinner({ size = 'md', className }: SpinnerProps) {
+  const sizes = {
+    sm: 'w-4 h-4',
+    md: 'w-8 h-8',
+    lg: 'w-12 h-12',
+  }
+
+  return (
+    <div
+      className={cn(
+        `animate-spin rounded-full border-2 border-[var(--color-bg-tertiary)] border-t-[var(--color-accent)]`,
+        sizes[size],
+        className
+      )}
+    />
+  )
+}
+
+export function PageLoader() {
+  return (
+    <div className="flex items-center justify-center min-h-[400px]">
+      <Spinner size="lg" />
+    </div>
+  )
+}
