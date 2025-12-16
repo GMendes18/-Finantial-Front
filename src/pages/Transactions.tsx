@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -14,6 +15,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Receipt,
+  X,
 } from 'lucide-react'
 import { Card, Button, Input, Select, Modal, Badge, PageLoader, EmptyState } from '@/components/ui'
 import { useTransactions, useCreateTransaction, useUpdateTransaction, useDeleteTransaction } from '@/hooks/useTransactions'
@@ -32,14 +34,35 @@ const transactionSchema = z.object({
 type TransactionForm = z.infer<typeof transactionSchema>
 
 export function Transactions() {
-  const [filters, setFilters] = useState<TransactionFilters>({ page: 1, limit: 10 })
+  const [searchParams] = useSearchParams()
+  const categoryIdFromUrl = searchParams.get('categoryId')
+
+  const [filters, setFilters] = useState<TransactionFilters>(() => ({
+    page: 1,
+    limit: 10,
+    categoryId: categoryIdFromUrl || undefined,
+  }))
+  const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null)
-  const [showFilters, setShowFilters] = useState(false)
+  const [showFilters, setShowFilters] = useState(!!categoryIdFromUrl)
 
-  const { data: transactionsData, isLoading } = useTransactions(filters)
+  const { data: transactionsData, isLoading, refetch } = useTransactions(filters)
+
+  // Sync URL params with filters
+  useEffect(() => {
+    if (categoryIdFromUrl) {
+      setFilters(prev => {
+        if (prev.categoryId !== categoryIdFromUrl) {
+          return { ...prev, categoryId: categoryIdFromUrl, page: 1 }
+        }
+        return prev
+      })
+      setShowFilters(true)
+    }
+  }, [categoryIdFromUrl])
   const { data: categories } = useCategories()
   const createMutation = useCreateTransaction()
   const updateMutation = useUpdateTransaction()
@@ -63,6 +86,24 @@ export function Transactions() {
   const watchType = watch('type')
 
   const filteredCategories = categories?.filter((c) => c.type === watchType) || []
+
+  // Debounced search - filtra localmente já que a API não tem endpoint de busca
+  const debouncedSearch = (term: string) => {
+    const timeoutId = setTimeout(() => {
+      setSearchTerm(term)
+    }, 300)
+    return () => clearTimeout(timeoutId)
+  }
+
+  // Filtrar transações localmente por termo de busca
+  const filteredTransactions = (transactionsData?.data || []).filter((transaction) => {
+    if (!searchTerm) return true
+    const term = searchTerm.toLowerCase()
+    return (
+      transaction.description?.toLowerCase().includes(term) ||
+      transaction.category.name.toLowerCase().includes(term)
+    )
+  })
 
   const openCreateModal = () => {
     setEditingTransaction(null)
@@ -102,6 +143,8 @@ export function Transactions() {
       }
       setIsModalOpen(false)
       reset()
+      // Força atualização imediata
+      refetch()
     } catch (error) {
       console.error('Error saving transaction:', error)
     }
@@ -114,6 +157,8 @@ export function Transactions() {
       await deleteMutation.mutateAsync(deletingTransaction.id)
       setIsDeleteModalOpen(false)
       setDeletingTransaction(null)
+      // Força atualização imediata
+      refetch()
     } catch (error) {
       console.error('Error deleting transaction:', error)
     }
@@ -131,15 +176,28 @@ export function Transactions() {
     setFilters((prev) => ({ ...prev, page }))
   }
 
+  const clearFilters = () => {
+    setFilters({ page: 1, limit: 10 })
+    setSearchTerm('')
+  }
+
+  const hasActiveFilters = filters.type || filters.categoryId || filters.startDate || filters.endDate || searchTerm
+
+  // Refetch quando mutations completam
+  useEffect(() => {
+    if (createMutation.isSuccess || updateMutation.isSuccess || deleteMutation.isSuccess) {
+      refetch()
+    }
+  }, [createMutation.isSuccess, updateMutation.isSuccess, deleteMutation.isSuccess, refetch])
+
   if (isLoading) {
     return <PageLoader />
   }
 
-  const transactions = transactionsData?.data || []
   const meta = transactionsData?.meta
 
   return (
-    <div className="p-6 lg:p-8 space-y-6">
+    <div className="p-4 sm:p-6 lg:p-8 space-y-4 sm:space-y-6">
       {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -20 }}
@@ -147,160 +205,314 @@ export function Transactions() {
         className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"
       >
         <div>
-          <h1 className="text-3xl font-bold font-[family-name:var(--font-display)] text-[var(--color-text-primary)]">
+          <h1 className="text-2xl sm:text-3xl font-bold font-[family-name:var(--font-display)] text-[var(--color-text-primary)]">
             Transações
           </h1>
-          <p className="text-[var(--color-text-secondary)]">
+          <p className="text-sm sm:text-base text-[var(--color-text-secondary)]">
             Gerencie suas receitas e despesas
           </p>
         </div>
-        <Button onClick={openCreateModal}>
+        <Button onClick={openCreateModal} className="w-full sm:w-auto">
           <Plus className="w-4 h-4" />
           Nova Transação
         </Button>
       </motion.div>
 
       {/* Filters */}
-      <Card>
-        <div className="flex flex-col lg:flex-row lg:items-center gap-4">
-          <div className="flex-1">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--color-text-muted)]" />
+      <Card className="!p-3 sm:!p-6">
+        <div className="space-y-3">
+          {/* Search and Filter Toggle */}
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-[var(--color-text-muted)]" />
               <input
                 type="text"
-                placeholder="Buscar transações..."
-                className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-surface-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)]"
+                placeholder="Buscar por descrição ou categoria..."
+                defaultValue={searchTerm}
+                onChange={(e) => debouncedSearch(e.target.value)}
+                className="w-full pl-9 sm:pl-10 pr-4 py-2 sm:py-2.5 rounded-lg bg-[var(--color-bg-tertiary)] border border-[var(--color-surface-border)] text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none focus:border-[var(--color-accent)] text-sm"
               />
             </div>
+            <button
+              onClick={() => setShowFilters(!showFilters)}
+              className={`flex items-center gap-2 px-3 sm:px-4 py-2 rounded-lg border transition-colors ${
+                showFilters || hasActiveFilters
+                  ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-accent)]'
+                  : 'border-[var(--color-surface-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)]'
+              }`}
+            >
+              <Filter className="w-4 h-4" />
+              <span className="hidden sm:inline">Filtros</span>
+              {hasActiveFilters && (
+                <span className="w-2 h-2 rounded-full bg-[var(--color-accent)]" />
+              )}
+            </button>
           </div>
 
-          <button
-            onClick={() => setShowFilters(!showFilters)}
-            className="flex items-center gap-2 px-4 py-2.5 rounded-lg border border-[var(--color-surface-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] transition-colors lg:hidden"
-          >
-            <Filter className="w-4 h-4" />
-            Filtros
-          </button>
+          {/* Expandable Filters */}
+          <AnimatePresence>
+            {showFilters && (
+              <motion.div
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="pt-3 border-t border-[var(--color-surface-border)] space-y-3">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
+                    <Select
+                      label="Tipo"
+                      options={[
+                        { value: '', label: 'Todos os tipos' },
+                        { value: 'INCOME', label: 'Receitas' },
+                        { value: 'EXPENSE', label: 'Despesas' },
+                      ]}
+                      value={filters.type || ''}
+                      onChange={(e) => handleFilterChange('type', e.target.value)}
+                    />
 
-          <div className={`flex flex-col lg:flex-row gap-4 ${showFilters ? 'block' : 'hidden lg:flex'}`}>
-            <Select
-              options={[
-                { value: '', label: 'Todos os tipos' },
-                { value: 'INCOME', label: 'Receitas' },
-                { value: 'EXPENSE', label: 'Despesas' },
-              ]}
-              value={filters.type || ''}
-              onChange={(e) => handleFilterChange('type', e.target.value)}
-              className="w-full lg:w-40"
-            />
+                    <Select
+                      label="Categoria"
+                      options={[
+                        { value: '', label: 'Todas as categorias' },
+                        ...(categories?.map((c) => ({ value: c.id, label: c.name })) || []),
+                      ]}
+                      value={filters.categoryId || ''}
+                      onChange={(e) => handleFilterChange('categoryId', e.target.value)}
+                    />
 
-            <Select
-              options={[
-                { value: '', label: 'Todas as categorias' },
-                ...(categories?.map((c) => ({ value: c.id, label: c.name })) || []),
-              ]}
-              value={filters.categoryId || ''}
-              onChange={(e) => handleFilterChange('categoryId', e.target.value)}
-              className="w-full lg:w-48"
-            />
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-[var(--color-text-secondary)]">
+                        Data inicial
+                      </label>
+                      <input
+                        type="date"
+                        value={filters.startDate || ''}
+                        onChange={(e) => handleFilterChange('startDate', e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-surface-border)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)] text-sm [color-scheme:dark]"
+                      />
+                    </div>
 
-            <Input
-              type="date"
-              value={filters.startDate || ''}
-              onChange={(e) => handleFilterChange('startDate', e.target.value)}
-              className="w-full lg:w-40"
-            />
+                    <div className="space-y-1.5">
+                      <label className="block text-sm font-medium text-[var(--color-text-secondary)]">
+                        Data final
+                      </label>
+                      <input
+                        type="date"
+                        value={filters.endDate || ''}
+                        onChange={(e) => handleFilterChange('endDate', e.target.value)}
+                        className="w-full px-3 py-2.5 rounded-lg bg-[var(--color-bg-secondary)] border border-[var(--color-surface-border)] text-[var(--color-text-primary)] focus:outline-none focus:border-[var(--color-accent)] text-sm [color-scheme:dark]"
+                      />
+                    </div>
+                  </div>
 
-            <Input
-              type="date"
-              value={filters.endDate || ''}
-              onChange={(e) => handleFilterChange('endDate', e.target.value)}
-              className="w-full lg:w-40"
-            />
-          </div>
+                  {hasActiveFilters && (
+                    <button
+                      onClick={clearFilters}
+                      className="flex items-center gap-2 text-sm text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                      Limpar filtros
+                    </button>
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       </Card>
 
       {/* Transactions List */}
-      {transactions.length === 0 ? (
+      {filteredTransactions.length === 0 ? (
         <EmptyState
           icon={Receipt}
-          title="Nenhuma transação encontrada"
-          description="Comece adicionando sua primeira transação para acompanhar suas finanças."
-          action={{ label: 'Adicionar Transação', onClick: openCreateModal }}
+          title={searchTerm || hasActiveFilters ? "Nenhuma transação encontrada" : "Nenhuma transação cadastrada"}
+          description={searchTerm || hasActiveFilters
+            ? "Tente ajustar os filtros ou termo de busca."
+            : "Comece adicionando sua primeira transação para acompanhar suas finanças."}
+          action={!hasActiveFilters ? { label: 'Adicionar Transação', onClick: openCreateModal } : undefined}
         />
       ) : (
-        <Card className="overflow-hidden !p-0">
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[var(--color-surface-border)]">
-                  <th className="text-left p-4 text-sm font-medium text-[var(--color-text-muted)]">
-                    Transação
-                  </th>
-                  <th className="text-left p-4 text-sm font-medium text-[var(--color-text-muted)]">
-                    Categoria
-                  </th>
-                  <th className="text-left p-4 text-sm font-medium text-[var(--color-text-muted)]">
-                    Data
-                  </th>
-                  <th className="text-right p-4 text-sm font-medium text-[var(--color-text-muted)]">
-                    Valor
-                  </th>
-                  <th className="text-right p-4 text-sm font-medium text-[var(--color-text-muted)]">
-                    Ações
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                <AnimatePresence mode="popLayout">
-                  {transactions.map((transaction) => (
-                    <motion.tr
-                      key={transaction.id}
-                      layout
-                      initial={{ opacity: 0 }}
-                      animate={{ opacity: 1 }}
-                      exit={{ opacity: 0 }}
-                      className="border-b border-[var(--color-surface-border)] last:border-0 hover:bg-[var(--color-bg-tertiary)]/30 transition-colors"
-                    >
-                      <td className="p-4">
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-10 h-10 rounded-lg flex items-center justify-center"
-                            style={{ backgroundColor: `${transaction.category.color}20` }}
+        <>
+          {/* Desktop Table */}
+          <Card className="overflow-hidden !p-0 hidden md:block">
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[var(--color-surface-border)]">
+                    <th className="text-left p-4 text-sm font-medium text-[var(--color-text-muted)]">
+                      Transação
+                    </th>
+                    <th className="text-left p-4 text-sm font-medium text-[var(--color-text-muted)]">
+                      Categoria
+                    </th>
+                    <th className="text-left p-4 text-sm font-medium text-[var(--color-text-muted)]">
+                      Data
+                    </th>
+                    <th className="text-right p-4 text-sm font-medium text-[var(--color-text-muted)]">
+                      Valor
+                    </th>
+                    <th className="text-right p-4 text-sm font-medium text-[var(--color-text-muted)]">
+                      Ações
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  <AnimatePresence mode="popLayout">
+                    {filteredTransactions.map((transaction) => (
+                      <motion.tr
+                        key={transaction.id}
+                        layout
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        className="border-b border-[var(--color-surface-border)] last:border-0 hover:bg-[var(--color-bg-tertiary)]/30 transition-colors"
+                      >
+                        <td className="p-4">
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                              style={{ backgroundColor: `${transaction.category.color}20` }}
+                            >
+                              {transaction.type === 'INCOME' ? (
+                                <ArrowUpRight className="w-5 h-5" style={{ color: transaction.category.color }} />
+                              ) : (
+                                <ArrowDownRight className="w-5 h-5" style={{ color: transaction.category.color }} />
+                              )}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-medium text-[var(--color-text-primary)] truncate">
+                                {transaction.description || transaction.category.name}
+                              </p>
+                              <Badge type={transaction.type}>
+                                {transaction.type === 'INCOME' ? 'Receita' : 'Despesa'}
+                              </Badge>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center gap-2">
+                            <div
+                              className="w-3 h-3 rounded-full shrink-0"
+                              style={{ backgroundColor: transaction.category.color }}
+                            />
+                            <span className="text-[var(--color-text-secondary)] truncate">
+                              {transaction.category.name}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="p-4 text-[var(--color-text-secondary)] whitespace-nowrap">
+                          {formatDate(transaction.date)}
+                        </td>
+                        <td className="p-4 text-right">
+                          <span
+                            className={`font-semibold tabular-nums whitespace-nowrap ${
+                              transaction.type === 'INCOME'
+                                ? 'text-[var(--color-income)]'
+                                : 'text-[var(--color-expense)]'
+                            }`}
                           >
-                            {transaction.type === 'INCOME' ? (
-                              <ArrowUpRight className="w-5 h-5" style={{ color: transaction.category.color }} />
-                            ) : (
-                              <ArrowDownRight className="w-5 h-5" style={{ color: transaction.category.color }} />
-                            )}
-                          </div>
-                          <div>
-                            <p className="font-medium text-[var(--color-text-primary)]">
-                              {transaction.description || transaction.category.name}
-                            </p>
-                            <Badge type={transaction.type}>
-                              {transaction.type === 'INCOME' ? 'Receita' : 'Despesa'}
-                            </Badge>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center gap-2">
-                          <div
-                            className="w-3 h-3 rounded-full"
-                            style={{ backgroundColor: transaction.category.color }}
-                          />
-                          <span className="text-[var(--color-text-secondary)]">
-                            {transaction.category.name}
+                            {transaction.type === 'INCOME' ? '+' : '-'}
+                            {formatCurrency(transaction.amount)}
                           </span>
+                        </td>
+                        <td className="p-4">
+                          <div className="flex items-center justify-end gap-1">
+                            <button
+                              onClick={() => openEditModal(transaction)}
+                              className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                            >
+                              <Edit2 className="w-4 h-4" />
+                            </button>
+                            <button
+                              onClick={() => openDeleteModal(transaction)}
+                              className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-expense)] hover:bg-[var(--color-expense)]/10 transition-colors"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        </td>
+                      </motion.tr>
+                    ))}
+                  </AnimatePresence>
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            {meta && meta.totalPages > 1 && (
+              <div className="flex items-center justify-between p-4 border-t border-[var(--color-surface-border)]">
+                <p className="text-sm text-[var(--color-text-muted)]">
+                  Mostrando {((meta.page - 1) * meta.limit) + 1} a {Math.min(meta.page * meta.limit, meta.total)} de {meta.total}
+                </p>
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => handlePageChange(meta.page - 1)}
+                    disabled={meta.page === 1}
+                    className="p-2 rounded-lg border border-[var(--color-surface-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <span className="text-sm text-[var(--color-text-secondary)]">
+                    {meta.page} / {meta.totalPages}
+                  </span>
+                  <button
+                    onClick={() => handlePageChange(meta.page + 1)}
+                    disabled={meta.page === meta.totalPages}
+                    className="p-2 rounded-lg border border-[var(--color-surface-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+            )}
+          </Card>
+
+          {/* Mobile Cards */}
+          <div className="md:hidden space-y-3">
+            <AnimatePresence mode="popLayout">
+              {filteredTransactions.map((transaction) => (
+                <motion.div
+                  key={transaction.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                >
+                  <Card className="!p-4">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0 flex-1">
+                        <div
+                          className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+                          style={{ backgroundColor: `${transaction.category.color}20` }}
+                        >
+                          {transaction.type === 'INCOME' ? (
+                            <ArrowUpRight className="w-5 h-5" style={{ color: transaction.category.color }} />
+                          ) : (
+                            <ArrowDownRight className="w-5 h-5" style={{ color: transaction.category.color }} />
+                          )}
                         </div>
-                      </td>
-                      <td className="p-4 text-[var(--color-text-secondary)]">
-                        {formatDate(transaction.date)}
-                      </td>
-                      <td className="p-4 text-right">
-                        <span
+                        <div className="min-w-0 flex-1">
+                          <p className="font-medium text-[var(--color-text-primary)] truncate">
+                            {transaction.description || transaction.category.name}
+                          </p>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div
+                              className="w-2 h-2 rounded-full shrink-0"
+                              style={{ backgroundColor: transaction.category.color }}
+                            />
+                            <span className="text-xs text-[var(--color-text-muted)] truncate">
+                              {transaction.category.name}
+                            </span>
+                            <span className="text-xs text-[var(--color-text-muted)]">•</span>
+                            <span className="text-xs text-[var(--color-text-muted)]">
+                              {formatDate(transaction.date)}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p
                           className={`font-semibold tabular-nums ${
                             transaction.type === 'INCOME'
                               ? 'text-[var(--color-income)]'
@@ -309,44 +521,37 @@ export function Transactions() {
                         >
                           {transaction.type === 'INCOME' ? '+' : '-'}
                           {formatCurrency(transaction.amount)}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center justify-end gap-2">
+                        </p>
+                        <div className="flex items-center justify-end gap-1 mt-2">
                           <button
                             onClick={() => openEditModal(transaction)}
-                            className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
+                            className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => openDeleteModal(transaction)}
-                            className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-expense)] hover:bg-[var(--color-expense)]/10 transition-colors"
+                            className="p-1.5 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-expense)] hover:bg-[var(--color-expense)]/10 transition-colors"
                           >
                             <Trash2 className="w-4 h-4" />
                           </button>
                         </div>
-                      </td>
-                    </motion.tr>
-                  ))}
-                </AnimatePresence>
-              </tbody>
-            </table>
-          </div>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              ))}
+            </AnimatePresence>
 
-          {/* Pagination */}
-          {meta && meta.totalPages > 1 && (
-            <div className="flex items-center justify-between p-4 border-t border-[var(--color-surface-border)]">
-              <p className="text-sm text-[var(--color-text-muted)]">
-                Mostrando {((meta.page - 1) * meta.limit) + 1} a {Math.min(meta.page * meta.limit, meta.total)} de {meta.total} transações
-              </p>
-              <div className="flex items-center gap-2">
+            {/* Mobile Pagination */}
+            {meta && meta.totalPages > 1 && (
+              <div className="flex items-center justify-center gap-4 pt-4">
                 <button
                   onClick={() => handlePageChange(meta.page - 1)}
                   disabled={meta.page === 1}
                   className="p-2 rounded-lg border border-[var(--color-surface-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <ChevronLeft className="w-4 h-4" />
+                  <ChevronLeft className="w-5 h-5" />
                 </button>
                 <span className="text-sm text-[var(--color-text-secondary)]">
                   Página {meta.page} de {meta.totalPages}
@@ -356,12 +561,12 @@ export function Transactions() {
                   disabled={meta.page === meta.totalPages}
                   className="p-2 rounded-lg border border-[var(--color-surface-border)] text-[var(--color-text-secondary)] hover:bg-[var(--color-bg-tertiary)] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
                 >
-                  <ChevronRight className="w-4 h-4" />
+                  <ChevronRight className="w-5 h-5" />
                 </button>
               </div>
-            </div>
-          )}
-        </Card>
+            )}
+          </div>
+        </>
       )}
 
       {/* Create/Edit Modal */}

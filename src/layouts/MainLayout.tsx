@@ -35,7 +35,7 @@ export function MainLayout() {
   }
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg-primary)] flex">
+    <div className="min-h-screen bg-[var(--color-bg-primary)] flex overflow-x-hidden">
       {/* Desktop Sidebar */}
       <aside className="hidden lg:flex lg:flex-col w-64 bg-[var(--color-bg-secondary)] border-r border-[var(--color-surface-border)]">
         {/* Logo */}
@@ -207,8 +207,8 @@ export function MainLayout() {
       </AnimatePresence>
 
       {/* Main Content */}
-      <main className="flex-1 lg:overflow-auto">
-        <div className="pt-20 lg:pt-0 min-h-screen">
+      <main className="flex-1 min-w-0 overflow-x-hidden">
+        <div className="pt-16 lg:pt-0 min-h-screen overflow-x-hidden">
           <Outlet />
         </div>
       </main>
