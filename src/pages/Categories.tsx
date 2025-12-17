@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -11,6 +12,7 @@ import {
   TrendingDown,
   Palette,
   Tags,
+  ExternalLink,
 } from 'lucide-react'
 import { Card, Button, Input, Modal, PageLoader, EmptyState } from '@/components/ui'
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '@/hooks/useCategories'
@@ -33,6 +35,7 @@ const colorPalette = [
 ]
 
 export function Categories() {
+  const navigate = useNavigate()
   const [activeTab, setActiveTab] = useState<CategoryType>('EXPENSE')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
@@ -40,6 +43,10 @@ export function Categories() {
   const [deletingCategory, setDeletingCategory] = useState<Category | null>(null)
 
   const { data: categories, isLoading } = useCategories()
+
+  const navigateToTransactions = (categoryId: string) => {
+    navigate(`/transactions?categoryId=${categoryId}`)
+  }
   const createMutation = useCreateCategory()
   const updateMutation = useUpdateCategory()
   const deleteMutation = useDeleteCategory()
@@ -196,7 +203,8 @@ export function Categories() {
               >
                 <Card
                   hover
-                  className="group relative overflow-hidden"
+                  className="group relative overflow-hidden cursor-pointer"
+                  onClick={() => navigateToTransactions(category.id)}
                 >
                   {/* Color Bar */}
                   <div
@@ -216,22 +224,31 @@ export function Categories() {
                         <h3 className="font-semibold text-[var(--color-text-primary)]">
                           {category.name}
                         </h3>
-                        <p className="text-sm text-[var(--color-text-muted)]">
-                          {category._count?.transactions || 0} transações
-                        </p>
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm text-[var(--color-text-muted)]">
+                            {category._count?.transactions || 0} transações
+                          </p>
+                          <ExternalLink className="w-3 h-3 text-[var(--color-text-muted)] opacity-0 group-hover:opacity-100 transition-opacity" />
+                        </div>
                       </div>
                     </div>
 
                     {/* Actions */}
                     <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
                       <button
-                        onClick={() => openEditModal(category)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openEditModal(category)
+                        }}
                         className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-text-primary)] hover:bg-[var(--color-bg-tertiary)] transition-colors"
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => openDeleteModal(category)}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          openDeleteModal(category)
+                        }}
                         className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-expense)] hover:bg-[var(--color-expense)]/10 transition-colors"
                       >
                         <Trash2 className="w-4 h-4" />
