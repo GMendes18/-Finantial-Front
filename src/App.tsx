@@ -10,6 +10,7 @@ import {
   Categories,
   Reports,
   Profile,
+  Investments,
 } from '@/pages'
 import { PageLoader } from '@/components/ui'
 
@@ -84,6 +85,7 @@ function AppRoutes() {
         <Route path="transactions" element={<Transactions />} />
         <Route path="categories" element={<Categories />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="investments" element={<Investments />} />
         <Route path="profile" element={<Profile />} />
       </Route>
 

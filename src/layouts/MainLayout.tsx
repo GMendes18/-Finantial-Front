@@ -12,6 +12,7 @@ import {
   X,
   Wallet,
   ChevronRight,
+  TrendingUp,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn, getInitials } from '@/lib/utils'
@@ -20,6 +21,7 @@ const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/transactions', icon: ArrowUpDown, label: 'Transações' },
   { to: '/categories', icon: Tags, label: 'Categorias' },
+  { to: '/investments', icon: TrendingUp, label: 'Investimentos' },
   { to: '/reports', icon: BarChart3, label: 'Relatórios' },
   { to: '/profile', icon: User, label: 'Perfil' },
 ]
