@@ -21,6 +21,8 @@ import {
 } from 'recharts'
 import { Link } from 'react-router-dom'
 import { Card, PageLoader, Badge } from '@/components/ui'
+import { ExchangeWidget } from '@/components/ExchangeWidget'
+import { InsightsWidget } from '@/components/InsightsWidget'
 import { useReportSummary, useReportByCategory, useBalance, useMonthlyTrend } from '@/hooks/useReports'
 import { useTransactions } from '@/hooks/useTransactions'
 import { formatCurrency, formatMonth, formatDate, formatPercentage, getCurrentMonthYear } from '@/lib/utils'
@@ -101,6 +103,24 @@ export function Dashboard() {
           variant="default"
           delay={0.3}
         />
+      </div>
+
+      {/* Exchange Widget + Insights */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <ExchangeWidget />
+        </motion.div>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <InsightsWidget />
+        </motion.div>
       </div>
 
       {/* Charts Section */}
