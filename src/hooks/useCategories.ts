@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
-import type { Category, CategoryFormData, CategoryType, ApiResponse } from '@/types'
+import type { Category, CategoryFormData, CategoryType, ApiResponse, CategorySuggestion } from '@/types'
 
 export function useCategories(type?: CategoryType) {
   return useQuery({
@@ -8,6 +8,13 @@ export function useCategories(type?: CategoryType) {
     queryFn: () =>
       api.get<ApiResponse<Category[]>>('/categories', type ? { type } : undefined),
     select: (data) => data.data,
+  })
+}
+
+export function useSuggestCategory() {
+  return useMutation({
+    mutationFn: ({ description, type }: { description: string; type: CategoryType }) =>
+      api.post<ApiResponse<CategorySuggestion | null>>('/categories/suggest', { description, type }),
   })
 }
 

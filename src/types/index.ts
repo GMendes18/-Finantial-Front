@@ -40,6 +40,7 @@ export interface Category {
   type: CategoryType
   color: string
   icon: string
+  keywords?: string[]
   createdAt: string
   updatedAt: string
   _count?: {
@@ -52,6 +53,15 @@ export interface CategoryFormData {
   type: CategoryType
   color?: string
   icon?: string
+  keywords?: string[]
+}
+
+// Category Suggestion Types
+export interface CategorySuggestion {
+  categoryId: string
+  categoryName: string
+  confidence: number
+  matchedKeyword: string | null
 }
 
 // Transaction Types
@@ -154,4 +164,92 @@ export interface ApiError {
   status: 'error'
   message: string
   errors?: Record<string, string[]>
+}
+
+// Investment Types
+export interface Investment {
+  id: string
+  symbol: string
+  name: string
+  shares: number
+  purchasePrice: number
+  purchaseDate: string
+  notes?: string
+  createdAt: string
+  updatedAt: string
+}
+
+export interface InvestmentFormData {
+  symbol: string
+  name: string
+  shares: number
+  purchasePrice: number
+  purchaseDate: string
+  notes?: string
+}
+
+export interface InvestmentPosition {
+  id: string
+  symbol: string
+  name: string
+  shares: number
+  purchasePrice: number
+  purchaseDate: string
+  notes?: string
+  invested: number
+  currentPrice: number
+  currentValue: number
+  gain: number
+  gainPercent: number
+  dayChange: number
+  dayChangePercent: number
+}
+
+export interface PortfolioSummary {
+  totalInvested: number
+  currentValue: number
+  totalGain: number
+  totalGainPercent: number
+  positions: InvestmentPosition[]
+}
+
+// Insights Types
+export interface Insight {
+  id: string
+  type: 'alert' | 'tip' | 'achievement' | 'trend'
+  title: string
+  description: string
+  icon: string
+}
+
+export interface InsightsSummary {
+  totalIncome: number
+  totalExpense: number
+  balance: number
+  topCategory: string
+  topCategoryAmount: number
+  savingsRate: number
+}
+
+export interface InsightsData {
+  generatedAt: string
+  insights: Insight[]
+  summary: InsightsSummary
+}
+
+// Exchange Types
+export interface CurrencyData {
+  symbol: string
+  rate: number
+  inverseRate: number
+  variation: number
+  trend: 'up' | 'down'
+  sparkline: number[]
+  lastUpdate: string
+}
+
+export interface ExchangeWidgetData {
+  base: string
+  date: string
+  currencies: CurrencyData[]
 }

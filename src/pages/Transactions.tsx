@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { motion, AnimatePresence } from 'framer-motion'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import {
@@ -17,9 +17,10 @@ import {
   Receipt,
   X,
 } from 'lucide-react'
-import { Card, Button, Input, Select, Modal, Badge, PageLoader, EmptyState } from '@/components/ui'
+import { Card, Button, Input, Select, Modal, Badge, PageLoader, EmptyState, CurrencyInput, DatePickerInput, CategorySuggestion } from '@/components/ui'
 import { useTransactions, useCreateTransaction, useUpdateTransaction, useDeleteTransaction } from '@/hooks/useTransactions'
-import { useCategories } from '@/hooks/useCategories'
+import { useCategories, useSuggestCategory } from '@/hooks/useCategories'
+import type { CategorySuggestion as CategorySuggestionType } from '@/types'
 import { formatCurrency, formatDate } from '@/lib/utils'
 import type { Transaction, TransactionFilters } from '@/types'
 
@@ -67,6 +68,11 @@ export function Transactions() {
   const createMutation = useCreateTransaction()
   const updateMutation = useUpdateTransaction()
   const deleteMutation = useDeleteTransaction()
+  const suggestMutation = useSuggestCategory()
+
+  // State for category suggestion
+  const [suggestion, setSuggestion] = useState<CategorySuggestionType | null>(null)
+  const [suggestionDismissed, setSuggestionDismissed] = useState(false)
 
   const {
     register,
@@ -74,6 +80,7 @@ export function Transactions() {
     reset,
     watch,
     setValue,
+    control,
     formState: { errors },
   } = useForm<TransactionForm>({
     resolver: zodResolver(transactionSchema),
@@ -84,8 +91,64 @@ export function Transactions() {
   })
 
   const watchType = watch('type')
+  const watchDescription = watch('description')
+  const watchCategoryId = watch('categoryId')
 
   const filteredCategories = categories?.filter((c) => c.type === watchType) || []
+
+  // Get color for current suggestion
+  const suggestionCategory = suggestion ? categories?.find(c => c.id === suggestion.categoryId) : null
+
+  // Debounced category suggestion
+  useEffect(() => {
+    // Don't suggest if editing, category already selected, or suggestion dismissed
+    if (editingTransaction || watchCategoryId || suggestionDismissed) {
+      setSuggestion(null)
+      return
+    }
+
+    const description = watchDescription?.trim()
+    if (!description || description.length < 3) {
+      setSuggestion(null)
+      return
+    }
+
+    const timeoutId = setTimeout(async () => {
+      try {
+        const result = await suggestMutation.mutateAsync({
+          description,
+          type: watchType,
+        })
+        if (result.data) {
+          setSuggestion(result.data)
+        } else {
+          setSuggestion(null)
+        }
+      } catch {
+        setSuggestion(null)
+      }
+    }, 500)
+
+    return () => clearTimeout(timeoutId)
+  }, [watchDescription, watchType, editingTransaction, watchCategoryId, suggestionDismissed])
+
+  // Reset suggestion when modal closes or type changes
+  useEffect(() => {
+    setSuggestion(null)
+    setSuggestionDismissed(false)
+  }, [isModalOpen, watchType])
+
+  const acceptSuggestion = () => {
+    if (suggestion) {
+      setValue('categoryId', suggestion.categoryId)
+      setSuggestion(null)
+    }
+  }
+
+  const dismissSuggestion = () => {
+    setSuggestion(null)
+    setSuggestionDismissed(true)
+  }
 
   // Debounced search - filtra localmente já que a API não tem endpoint de busca
   const debouncedSearch = (term: string) => {
@@ -107,6 +170,8 @@ export function Transactions() {
 
   const openCreateModal = () => {
     setEditingTransaction(null)
+    setSuggestion(null)
+    setSuggestionDismissed(false)
     reset({
       type: 'EXPENSE',
       date: new Date().toISOString().split('T')[0],
@@ -610,13 +675,17 @@ export function Transactions() {
             </button>
           </div>
 
-          <Input
-            label="Valor"
-            type="number"
-            step="0.01"
-            placeholder="0,00"
-            error={errors.amount?.message}
-            {...register('amount', { valueAsNumber: true })}
+          <Controller
+            name="amount"
+            control={control}
+            render={({ field }) => (
+              <CurrencyInput
+                label="Valor"
+                value={field.value}
+                onValueChange={field.onChange}
+                error={errors.amount?.message}
+              />
+            )}
           />
 
           <Input
@@ -627,11 +696,28 @@ export function Transactions() {
             {...register('description')}
           />
 
-          <Input
-            label="Data"
-            type="date"
-            error={errors.date?.message}
-            {...register('date')}
+          {/* Category Suggestion */}
+          {!editingTransaction && (
+            <CategorySuggestion
+              suggestion={suggestion}
+              isLoading={suggestMutation.isPending && !suggestionDismissed}
+              onAccept={acceptSuggestion}
+              onDismiss={dismissSuggestion}
+              categoryColor={suggestionCategory?.color}
+            />
+          )}
+
+          <Controller
+            name="date"
+            control={control}
+            render={({ field }) => (
+              <DatePickerInput
+                label="Data"
+                value={field.value}
+                onChange={field.onChange}
+                error={errors.date?.message}
+              />
+            )}
           />
 
           <Select

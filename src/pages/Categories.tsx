@@ -14,7 +14,7 @@ import {
   Tags,
   ExternalLink,
 } from 'lucide-react'
-import { Card, Button, Input, Modal, PageLoader, EmptyState } from '@/components/ui'
+import { Card, Button, Input, Modal, PageLoader, EmptyState, KeywordsInput } from '@/components/ui'
 import { useCategories, useCreateCategory, useUpdateCategory, useDeleteCategory } from '@/hooks/useCategories'
 import type { Category, CategoryType } from '@/types'
 
@@ -23,6 +23,7 @@ const categorySchema = z.object({
   type: z.enum(['INCOME', 'EXPENSE']),
   color: z.string().regex(/^#[0-9A-Fa-f]{6}$/, 'Cor inválida'),
   icon: z.string().optional(),
+  keywords: z.array(z.string()).optional(),
 })
 
 type CategoryForm = z.infer<typeof categorySchema>
@@ -67,6 +68,7 @@ export function Categories() {
   })
 
   const watchColor = watch('color')
+  const watchKeywords = watch('keywords') || []
 
   const filteredCategories = categories?.filter((c) => c.type === activeTab) || []
 
@@ -77,6 +79,7 @@ export function Categories() {
       name: '',
       color: type === 'INCOME' ? '#10b981' : '#f43f5e',
       icon: '',
+      keywords: [],
     })
     setIsModalOpen(true)
   }
@@ -88,6 +91,7 @@ export function Categories() {
       type: category.type,
       color: category.color,
       icon: category.icon || '',
+      keywords: category.keywords || [],
     })
     setIsModalOpen(true)
   }
@@ -316,6 +320,14 @@ export function Categories() {
               className="flex-1"
             />
           </div>
+
+          {/* Keywords for auto-categorization */}
+          <KeywordsInput
+            label="Palavras-chave para categorização automática"
+            value={watchKeywords}
+            onChange={(keywords) => setValue('keywords', keywords)}
+            placeholder="Ex: ifood, restaurante, mercado..."
+          />
 
           <div className="flex gap-3 pt-4">
             <Button
