@@ -97,7 +97,7 @@ export function InsightsWidget() {
   }
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <motion.div
@@ -124,7 +124,7 @@ export function InsightsWidget() {
         </motion.button>
       </div>
 
-      <div className="space-y-3">
+      <div className="space-y-3 flex-1">
         {data?.insights.map((insight, index) => (
           <InsightCard key={insight.id} insight={insight} index={index} />
         ))}
