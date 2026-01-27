@@ -54,10 +54,13 @@ class ApiClient {
     const data = await response.json();
 
     if (!response.ok) {
-      if (response.status === 401) {
+      // Only redirect on 401 if user was previously authenticated
+      // Don't redirect during login/register attempts
+      if (response.status === 401 && localStorage.getItem("token")) {
         localStorage.removeItem("token");
         localStorage.removeItem("user");
         window.location.href = "/login";
+        throw new Error("Sessão expirada. Faça login novamente.");
       }
       throw new Error(data.message || "Erro na requisição");
     }

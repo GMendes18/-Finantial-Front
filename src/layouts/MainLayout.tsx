@@ -13,9 +13,11 @@ import {
   Wallet,
   ChevronRight,
   TrendingUp,
+  AlertTriangle,
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { cn, getInitials } from '@/lib/utils'
+import { Button } from '@/components/ui'
 
 const navItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -30,8 +32,14 @@ export function MainLayout() {
   const { user, logout } = useAuth()
   const navigate = useNavigate()
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false)
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true)
+    setIsMobileMenuOpen(false)
+  }
+
+  const handleLogoutConfirm = () => {
     logout()
     navigate('/login')
   }
@@ -111,7 +119,7 @@ export function MainLayout() {
               </p>
             </div>
             <button
-              onClick={handleLogout}
+              onClick={handleLogoutClick}
               className="p-2 rounded-lg text-[var(--color-text-muted)] hover:text-[var(--color-expense)] hover:bg-[var(--color-expense)]/10 transition-colors"
               title="Sair"
             >
@@ -196,7 +204,7 @@ export function MainLayout() {
 
               <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-[var(--color-surface-border)]">
                 <button
-                  onClick={handleLogout}
+                  onClick={handleLogoutClick}
                   className="flex items-center gap-3 w-full px-4 py-3 rounded-lg text-[var(--color-expense)] hover:bg-[var(--color-expense)]/10 transition-colors"
                 >
                   <LogOut className="w-5 h-5" />
@@ -214,6 +222,60 @@ export function MainLayout() {
           <Outlet />
         </div>
       </main>
+
+      {/* Logout Confirmation Modal */}
+      <AnimatePresence>
+        {showLogoutConfirm && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm"
+              onClick={() => setShowLogoutConfirm(false)}
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-sm mx-4"
+            >
+              <div className="bg-[var(--color-bg-secondary)] rounded-2xl border border-[var(--color-surface-border)] shadow-xl p-6">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="p-3 rounded-full bg-[var(--color-expense)]/10">
+                    <AlertTriangle className="w-6 h-6 text-[var(--color-expense)]" />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-semibold text-[var(--color-text-primary)]">
+                      Sair da conta
+                    </h3>
+                    <p className="text-sm text-[var(--color-text-muted)]">
+                      Tem certeza que deseja sair?
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-3">
+                  <Button
+                    variant="ghost"
+                    className="flex-1"
+                    onClick={() => setShowLogoutConfirm(false)}
+                  >
+                    Cancelar
+                  </Button>
+                  <Button
+                    variant="danger"
+                    className="flex-1"
+                    onClick={handleLogoutConfirm}
+                  >
+                    <LogOut className="w-4 h-4" />
+                    Sair
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

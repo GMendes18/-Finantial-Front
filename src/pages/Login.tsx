@@ -1,10 +1,10 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { motion } from 'framer-motion'
-import { Mail, Lock, ArrowRight, Wallet } from 'lucide-react'
+import { motion, AnimatePresence } from 'framer-motion'
+import { Mail, Lock, ArrowRight, Wallet, AlertCircle, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button, Input } from '@/components/ui'
 
@@ -15,11 +15,35 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
+// Rotating stats for the login page
+const marketingStats = [
+  { value: '+62%', label: 'Taxa de economia', color: 'income' },
+  { value: 'R$ 17k', label: 'Saldo médio', color: 'default' },
+  { value: '3.2k', label: 'Usuários ativos', color: 'accent' },
+  { value: '98%', label: 'Satisfação', color: 'income' },
+  { value: '-23%', label: 'Redução de gastos', color: 'income' },
+  { value: 'R$ 2.5M', label: 'Economizados', color: 'accent' },
+]
+
 export function Login() {
   const navigate = useNavigate()
   const { login } = useAuth()
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [currentStats, setCurrentStats] = useState([marketingStats[0], marketingStats[1]])
+
+  // Rotate stats every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setCurrentStats(prev => {
+        const availableStats = marketingStats.filter(s => !prev.includes(s))
+        const randomIndex = Math.floor(Math.random() * availableStats.length)
+        const newStat = availableStats[randomIndex]
+        return [prev[1], newStat]
+      })
+    }, 5000)
+    return () => clearInterval(interval)
+  }, [])
 
   const {
     register,
@@ -83,25 +107,35 @@ export function Login() {
             </p>
           </motion.div>
 
-          {/* Stats Preview */}
+          {/* Stats Preview - Dynamic */}
           <motion.div
             initial={{ opacity: 0, y: 40 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.3 }}
             className="mt-12 flex gap-8"
           >
-            <div>
-              <p className="text-3xl font-bold font-[family-name:var(--font-display)] text-gradient-income">
-                +62%
-              </p>
-              <p className="text-sm text-[var(--color-text-muted)]">Taxa de economia</p>
-            </div>
-            <div>
-              <p className="text-3xl font-bold font-[family-name:var(--font-display)] text-[var(--color-text-primary)]">
-                R$ 17k
-              </p>
-              <p className="text-sm text-[var(--color-text-muted)]">Saldo médio</p>
-            </div>
+            {currentStats.map((stat, index) => (
+              <AnimatePresence mode="wait" key={index}>
+                <motion.div
+                  key={stat.value}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -20 }}
+                  transition={{ duration: 0.3 }}
+                >
+                  <p className={`text-3xl font-bold font-[family-name:var(--font-display)] ${
+                    stat.color === 'income'
+                      ? 'text-gradient-income'
+                      : stat.color === 'accent'
+                      ? 'text-gradient-accent'
+                      : 'text-[var(--color-text-primary)]'
+                  }`}>
+                    {stat.value}
+                  </p>
+                  <p className="text-sm text-[var(--color-text-muted)]">{stat.label}</p>
+                </motion.div>
+              </AnimatePresence>
+            ))}
           </motion.div>
         </div>
       </div>
@@ -132,15 +166,35 @@ export function Login() {
           </p>
 
           <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
-            {error && (
-              <motion.div
-                initial={{ opacity: 0, y: -10 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="p-4 rounded-lg bg-[var(--color-expense)]/10 border border-[var(--color-expense)]/20"
-              >
-                <p className="text-sm text-[var(--color-expense)]">{error}</p>
-              </motion.div>
-            )}
+            <AnimatePresence>
+              {error && (
+                <motion.div
+                  initial={{ opacity: 0, y: -10, height: 0 }}
+                  animate={{ opacity: 1, y: 0, height: 'auto' }}
+                  exit={{ opacity: 0, y: -10, height: 0 }}
+                  className="p-4 rounded-lg bg-[var(--color-expense)]/10 border border-[var(--color-expense)]/20"
+                >
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="w-5 h-5 text-[var(--color-expense)] flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-[var(--color-expense)]">
+                        Erro ao fazer login
+                      </p>
+                      <p className="text-sm text-[var(--color-expense)]/80 mt-1">
+                        {error}
+                      </p>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setError('')}
+                      className="p-1 rounded hover:bg-[var(--color-expense)]/20 transition-colors"
+                    >
+                      <X className="w-4 h-4 text-[var(--color-expense)]" />
+                    </button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
 
             <Input
               label="Email"
