@@ -47,7 +47,7 @@ export function MainLayout() {
   return (
     <div className="min-h-screen bg-[var(--color-bg-primary)] flex overflow-x-hidden">
       {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex lg:flex-col w-64 bg-[var(--color-bg-secondary)] border-r border-[var(--color-surface-border)]">
+      <aside className="hidden lg:flex lg:flex-col w-64 h-screen sticky top-0 bg-[var(--color-bg-secondary)] border-r border-[var(--color-surface-border)]">
         {/* Logo */}
         <div className="p-6">
           <div className="flex items-center gap-3">

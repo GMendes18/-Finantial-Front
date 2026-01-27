@@ -8,6 +8,8 @@ import { Mail, Lock, ArrowRight, Wallet, AlertCircle, X } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
 import { Button, Input } from '@/components/ui'
 
+const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
 const loginSchema = z.object({
   email: z.string().email('Email inválido'),
   password: z.string().min(6, 'Senha deve ter no mínimo 6 caracteres'),
@@ -15,14 +17,29 @@ const loginSchema = z.object({
 
 type LoginForm = z.infer<typeof loginSchema>
 
-// Rotating stats for the login page
-const marketingStats = [
+interface PublicStats {
+  totalUsers: number
+  totalTransactions: number
+  totalSaved: number
+  avgSavingsRate: number
+  topCategories: string[]
+}
+
+// Format helpers
+const formatCompactNumber = (num: number): string => {
+  if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`
+  if (num >= 1000) return `${(num / 1000).toFixed(1)}k`
+  return num.toString()
+}
+
+const formatCurrency = (num: number): string => {
+  return `R$ ${formatCompactNumber(num)}`
+}
+
+// Fallback stats for when API fails
+const fallbackStats = [
   { value: '+62%', label: 'Taxa de economia', color: 'income' },
-  { value: 'R$ 17k', label: 'Saldo médio', color: 'default' },
-  { value: '3.2k', label: 'Usuários ativos', color: 'accent' },
-  { value: '98%', label: 'Satisfação', color: 'income' },
-  { value: '-23%', label: 'Redução de gastos', color: 'income' },
-  { value: 'R$ 2.5M', label: 'Economizados', color: 'accent' },
+  { value: 'R$ 17k', label: 'Economizados', color: 'accent' },
 ]
 
 export function Login() {
@@ -30,19 +47,32 @@ export function Login() {
   const { login } = useAuth()
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [currentStats, setCurrentStats] = useState([marketingStats[0], marketingStats[1]])
+  const [stats, setStats] = useState<{ value: string; label: string; color: string }[]>(fallbackStats)
 
-  // Rotate stats every 5 seconds
+  // Fetch public stats from API
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentStats(prev => {
-        const availableStats = marketingStats.filter(s => !prev.includes(s))
-        const randomIndex = Math.floor(Math.random() * availableStats.length)
-        const newStat = availableStats[randomIndex]
-        return [prev[1], newStat]
+    fetch(`${API_URL}/stats/public`)
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'success' && data.data) {
+          const publicStats: PublicStats = data.data
+          setStats([
+            {
+              value: `+${publicStats.avgSavingsRate}%`,
+              label: 'Taxa de economia',
+              color: 'income'
+            },
+            {
+              value: formatCurrency(publicStats.totalSaved),
+              label: 'Economizados',
+              color: 'accent'
+            },
+          ])
+        }
       })
-    }, 5000)
-    return () => clearInterval(interval)
+      .catch(() => {
+        // Keep fallback stats on error
+      })
   }, [])
 
   const {
@@ -114,7 +144,7 @@ export function Login() {
             transition={{ duration: 0.6, delay: 0.3 }}
             className="mt-12 flex gap-8"
           >
-            {currentStats.map((stat, index) => (
+            {stats.map((stat, index) => (
               <AnimatePresence mode="wait" key={index}>
                 <motion.div
                   key={stat.value}
