@@ -112,7 +112,7 @@ export function ExchangeWidget() {
   }
 
   return (
-    <Card>
+    <Card className="h-full flex flex-col">
       <div className="flex items-center justify-between mb-4">
         <div>
           <h3 className="text-lg font-semibold font-[family-name:var(--font-display)] text-[var(--color-text-primary)]">
@@ -135,7 +135,7 @@ export function ExchangeWidget() {
         </motion.button>
       </div>
 
-      <div className="space-y-2">
+      <div className="space-y-2 flex-1">
         {data?.currencies.map((currency, index) => {
           const Icon = currencyIcons[currency.symbol] || DollarSign
           const name = currencyNames[currency.symbol] || currency.symbol

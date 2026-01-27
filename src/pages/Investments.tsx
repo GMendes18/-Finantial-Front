@@ -268,21 +268,20 @@ function SummaryCard({ title, value, subtitle, icon: Icon, variant, delay = 0 }:
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
+      className="h-full"
     >
-      <Card hover>
-        <div className="flex items-start justify-between">
-          <div>
+      <Card hover className="h-full">
+        <div className="flex items-start justify-between h-full">
+          <div className="flex flex-col min-h-[72px]">
             <p className="text-sm font-medium text-[var(--color-text-muted)] mb-1">
               {title}
             </p>
             <p className={`text-2xl font-bold font-[family-name:var(--font-display)] tabular-nums ${valueColors[variant]}`}>
               {value}
             </p>
-            {subtitle && (
-              <p className={`text-sm mt-1 ${variant === 'income' ? 'text-[var(--color-income)]' : variant === 'expense' ? 'text-[var(--color-expense)]' : 'text-[var(--color-text-muted)]'}`}>
-                {subtitle}
-              </p>
-            )}
+            <p className={`text-sm mt-1 min-h-[20px] ${variant === 'income' ? 'text-[var(--color-income)]' : variant === 'expense' ? 'text-[var(--color-expense)]' : 'text-[var(--color-text-muted)]'}`}>
+              {subtitle || '\u00A0'}
+            </p>
           </div>
           <div className={`p-3 rounded-xl ${iconColors[variant]}`}>
             <Icon className="w-6 h-6" />
