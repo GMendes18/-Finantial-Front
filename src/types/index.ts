@@ -64,6 +64,9 @@ export interface CategorySuggestion {
   matchedKeyword: string | null
 }
 
+// Frequency Type for Recurring Transactions
+export type Frequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY'
+
 // Transaction Types
 export interface Transaction {
   id: string
@@ -73,6 +76,9 @@ export interface Transaction {
   date: string
   categoryId: string
   category: Pick<Category, 'id' | 'name' | 'color' | 'icon'>
+  isRecurring?: boolean
+  frequency?: Frequency
+  recurringEndDate?: string
   createdAt: string
   updatedAt: string
 }
@@ -83,6 +89,9 @@ export interface TransactionFormData {
   description?: string
   date: string
   categoryId: string
+  isRecurring?: boolean
+  frequency?: Frequency
+  recurringEndDate?: string
 }
 
 export interface TransactionFilters {
@@ -92,6 +101,7 @@ export interface TransactionFilters {
   endDate?: string
   page?: number
   limit?: number
+  isRecurring?: boolean
 }
 
 // Report Types

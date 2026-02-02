@@ -1,7 +1,7 @@
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3001";
 
 interface RequestOptions extends RequestInit {
-  params?: Record<string, string | number | undefined>;
+  params?: Record<string, string | number | boolean | undefined>;
 }
 
 class ApiClient {
@@ -17,7 +17,7 @@ class ApiClient {
 
   private buildUrl(
     endpoint: string,
-    params?: Record<string, string | number | undefined>
+    params?: Record<string, string | number | boolean | undefined>
   ): string {
     const url = new URL(`${this.baseUrl}${endpoint}`);
 
@@ -70,7 +70,7 @@ class ApiClient {
 
   get<T>(
     endpoint: string,
-    params?: Record<string, string | number | undefined>
+    params?: Record<string, string | number | boolean | undefined>
   ) {
     return this.request<T>(endpoint, { method: "GET", params });
   }
