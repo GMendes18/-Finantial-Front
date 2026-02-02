@@ -16,6 +16,7 @@ import {
   ChevronRight,
   Receipt,
   X,
+  Repeat,
 } from 'lucide-react'
 import { Card, Button, Input, Select, Modal, Badge, PageLoader, EmptyState, CurrencyInput, DatePickerInput, CategorySuggestion } from '@/components/ui'
 import { useTransactions, useCreateTransaction, useUpdateTransaction, useDeleteTransaction } from '@/hooks/useTransactions'
@@ -30,9 +31,28 @@ const transactionSchema = z.object({
   description: z.string().optional(),
   date: z.string().min(1, 'Data é obrigatória'),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
-})
+  isRecurring: z.boolean(),
+  frequency: z.enum(['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY']).optional(),
+}).refine(
+  (data) => !data.isRecurring || data.frequency,
+  { message: 'Selecione a frequência', path: ['frequency'] }
+)
 
 type TransactionForm = z.infer<typeof transactionSchema>
+
+const frequencyOptions = [
+  { value: 'DAILY', label: 'Diária' },
+  { value: 'WEEKLY', label: 'Semanal' },
+  { value: 'MONTHLY', label: 'Mensal' },
+  { value: 'YEARLY', label: 'Anual' },
+]
+
+const frequencyLabels: Record<string, string> = {
+  DAILY: 'Diária',
+  WEEKLY: 'Semanal',
+  MONTHLY: 'Mensal',
+  YEARLY: 'Anual',
+}
 
 export function Transactions() {
   const [searchParams] = useSearchParams()
@@ -93,6 +113,7 @@ export function Transactions() {
   const watchType = watch('type')
   const watchDescription = watch('description')
   const watchCategoryId = watch('categoryId')
+  const watchIsRecurring = watch('isRecurring')
 
   const filteredCategories = categories?.filter((c) => c.type === watchType) || []
 
@@ -178,6 +199,8 @@ export function Transactions() {
       amount: undefined,
       description: '',
       categoryId: '',
+      isRecurring: false,
+      frequency: undefined,
     })
     setIsModalOpen(true)
   }
@@ -190,6 +213,8 @@ export function Transactions() {
       description: transaction.description || '',
       date: transaction.date.split('T')[0],
       categoryId: transaction.categoryId,
+      isRecurring: transaction.isRecurring || false,
+      frequency: transaction.frequency,
     })
     setIsModalOpen(true)
   }
@@ -446,9 +471,16 @@ export function Transactions() {
                               )}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium text-[var(--color-text-primary)] truncate">
-                                {transaction.description || transaction.category.name}
-                              </p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-[var(--color-text-primary)] truncate">
+                                  {transaction.description || transaction.category.name}
+                                </p>
+                                {transaction.isRecurring && (
+                                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-[var(--color-accent)]/15 text-[var(--color-accent)]" title={`Recorrente: ${frequencyLabels[transaction.frequency || ''] || ''}`}>
+                                    <Repeat className="w-3 h-3" />
+                                  </span>
+                                )}
+                              </div>
                               <Badge type={transaction.type}>
                                 {transaction.type === 'INCOME' ? 'Receita' : 'Despesa'}
                               </Badge>
@@ -558,9 +590,16 @@ export function Transactions() {
                           )}
                         </div>
                         <div className="min-w-0 flex-1">
-                          <p className="font-medium text-[var(--color-text-primary)] truncate">
-                            {transaction.description || transaction.category.name}
-                          </p>
+                          <div className="flex items-center gap-2">
+                            <p className="font-medium text-[var(--color-text-primary)] truncate">
+                              {transaction.description || transaction.category.name}
+                            </p>
+                            {transaction.isRecurring && (
+                              <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium bg-[var(--color-accent)]/15 text-[var(--color-accent)] shrink-0">
+                                <Repeat className="w-3 h-3" />
+                              </span>
+                            )}
+                          </div>
                           <div className="flex items-center gap-2 mt-1">
                             <div
                               className="w-2 h-2 rounded-full shrink-0"
@@ -727,6 +766,50 @@ export function Transactions() {
             error={errors.categoryId?.message}
             {...register('categoryId')}
           />
+
+          {/* Recurring Transaction Toggle */}
+          <div className="space-y-3">
+            <label className="flex items-center gap-3 cursor-pointer group">
+              <div className="relative">
+                <input
+                  type="checkbox"
+                  className="sr-only peer"
+                  {...register('isRecurring')}
+                />
+                <div className="w-11 h-6 bg-[var(--color-bg-tertiary)] border border-[var(--color-surface-border)] rounded-full peer-checked:bg-[var(--color-accent)] transition-colors" />
+                <div className="absolute left-0.5 top-0.5 w-5 h-5 bg-white rounded-full transition-transform peer-checked:translate-x-5 shadow-sm" />
+              </div>
+              <div className="flex items-center gap-2">
+                <Repeat className="w-4 h-4 text-[var(--color-text-muted)] group-hover:text-[var(--color-accent)] transition-colors" />
+                <span className="text-sm font-medium text-[var(--color-text-secondary)]">
+                  Transação recorrente
+                </span>
+              </div>
+            </label>
+
+            {/* Frequency Select - only show when recurring is enabled */}
+            <AnimatePresence>
+              {watchIsRecurring && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }}
+                  animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }}
+                  className="overflow-hidden"
+                >
+                  <Select
+                    label="Frequência"
+                    options={frequencyOptions}
+                    placeholder="Selecione a frequência"
+                    error={errors.frequency?.message}
+                    {...register('frequency')}
+                  />
+                  <p className="mt-2 text-xs text-[var(--color-text-muted)]">
+                    Esta transação será criada automaticamente na frequência selecionada.
+                  </p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <div className="flex gap-3 pt-4">
             <Button
