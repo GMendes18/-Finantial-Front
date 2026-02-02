@@ -78,6 +78,7 @@ export function Dashboard() {
           icon={Wallet}
           variant="accent"
           delay={0}
+          to="/transactions"
         />
         <StatsCard
           title="Receitas do Mês"
@@ -86,6 +87,7 @@ export function Dashboard() {
           icon={TrendingUp}
           variant="income"
           delay={0.1}
+          to="/transactions?type=INCOME"
         />
         <StatsCard
           title="Despesas do Mês"
@@ -94,6 +96,7 @@ export function Dashboard() {
           icon={TrendingDown}
           variant="expense"
           delay={0.2}
+          to="/transactions?type=EXPENSE"
         />
         <StatsCard
           title="Taxa de Economia"
@@ -102,6 +105,7 @@ export function Dashboard() {
           icon={PiggyBank}
           variant="default"
           delay={0.3}
+          to="/reports"
         />
       </div>
 
@@ -350,9 +354,10 @@ interface StatsCardProps {
   icon: React.ElementType
   variant: 'default' | 'income' | 'expense' | 'accent'
   delay?: number
+  to?: string
 }
 
-function StatsCard({ title, value, subtitle, icon: Icon, variant, delay = 0 }: StatsCardProps) {
+function StatsCard({ title, value, subtitle, icon: Icon, variant, delay = 0, to }: StatsCardProps) {
   const iconColors = {
     default: 'text-[var(--color-text-secondary)] bg-[var(--color-bg-tertiary)]',
     income: 'text-[var(--color-income)] bg-[var(--color-income)]/10',
@@ -367,6 +372,27 @@ function StatsCard({ title, value, subtitle, icon: Icon, variant, delay = 0 }: S
     accent: 'text-gradient-accent',
   }
 
+  const content = (
+    <Card variant={variant} hover className="h-full">
+      <div className="flex items-start justify-between h-full">
+        <div className="flex flex-col min-h-[72px]">
+          <p className="text-sm font-medium text-[var(--color-text-muted)] mb-1">
+            {title}
+          </p>
+          <p className={`text-2xl font-bold font-[family-name:var(--font-display)] tabular-nums ${valueColors[variant]}`}>
+            {value}
+          </p>
+          <p className="text-sm text-[var(--color-text-muted)] mt-1 min-h-[20px]">
+            {subtitle || '\u00A0'}
+          </p>
+        </div>
+        <div className={`p-3 rounded-xl ${iconColors[variant]}`}>
+          <Icon className="w-6 h-6" />
+        </div>
+      </div>
+    </Card>
+  )
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -374,24 +400,13 @@ function StatsCard({ title, value, subtitle, icon: Icon, variant, delay = 0 }: S
       transition={{ delay }}
       className="h-full"
     >
-      <Card variant={variant} hover className="h-full">
-        <div className="flex items-start justify-between h-full">
-          <div className="flex flex-col min-h-[72px]">
-            <p className="text-sm font-medium text-[var(--color-text-muted)] mb-1">
-              {title}
-            </p>
-            <p className={`text-2xl font-bold font-[family-name:var(--font-display)] tabular-nums ${valueColors[variant]}`}>
-              {value}
-            </p>
-            <p className="text-sm text-[var(--color-text-muted)] mt-1 min-h-[20px]">
-              {subtitle || '\u00A0'}
-            </p>
-          </div>
-          <div className={`p-3 rounded-xl ${iconColors[variant]}`}>
-            <Icon className="w-6 h-6" />
-          </div>
-        </div>
-      </Card>
+      {to ? (
+        <Link to={to} className="block h-full">
+          {content}
+        </Link>
+      ) : (
+        content
+      )}
     </motion.div>
   )
 }

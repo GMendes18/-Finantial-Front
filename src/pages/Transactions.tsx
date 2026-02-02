@@ -57,33 +57,39 @@ const frequencyLabels: Record<string, string> = {
 export function Transactions() {
   const [searchParams] = useSearchParams()
   const categoryIdFromUrl = searchParams.get('categoryId')
+  const typeFromUrl = searchParams.get('type') as 'INCOME' | 'EXPENSE' | null
 
   const [filters, setFilters] = useState<TransactionFilters>(() => ({
     page: 1,
     limit: 10,
     categoryId: categoryIdFromUrl || undefined,
+    type: typeFromUrl || undefined,
   }))
   const [searchTerm, setSearchTerm] = useState('')
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null)
   const [deletingTransaction, setDeletingTransaction] = useState<Transaction | null>(null)
-  const [showFilters, setShowFilters] = useState(!!categoryIdFromUrl)
+  const [showFilters, setShowFilters] = useState(!!categoryIdFromUrl || !!typeFromUrl)
 
   const { data: transactionsData, isLoading, refetch } = useTransactions(filters)
 
   // Sync URL params with filters
   useEffect(() => {
-    if (categoryIdFromUrl) {
+    if (categoryIdFromUrl || typeFromUrl) {
       setFilters(prev => {
-        if (prev.categoryId !== categoryIdFromUrl) {
-          return { ...prev, categoryId: categoryIdFromUrl, page: 1 }
+        const newFilters = { ...prev, page: 1 }
+        if (categoryIdFromUrl && prev.categoryId !== categoryIdFromUrl) {
+          newFilters.categoryId = categoryIdFromUrl
         }
-        return prev
+        if (typeFromUrl && prev.type !== typeFromUrl) {
+          newFilters.type = typeFromUrl
+        }
+        return newFilters
       })
       setShowFilters(true)
     }
-  }, [categoryIdFromUrl])
+  }, [categoryIdFromUrl, typeFromUrl])
   const { data: categories } = useCategories()
   const createMutation = useCreateTransaction()
   const updateMutation = useUpdateTransaction()
